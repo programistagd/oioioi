@@ -33,6 +33,7 @@ class MailSubmissionForm(forms.Form):
         # if problem_instance does not exist any from the current
         # contest is chosen. To change in future.
         # ALSO in contests.forms
+        # TODO: this should probably also be upgraded, but surely? because mail submit probably won't be used like that
         contest = request.contest
         assert contest is not None
         problem_instance = ProblemInstance.objects \

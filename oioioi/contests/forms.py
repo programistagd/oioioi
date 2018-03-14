@@ -112,13 +112,17 @@ class SubmissionForm(forms.Form):
             # ALSO in mailsubmit.forms
             contest = request.contest
             assert contest is not None
-            problem_instance = ProblemInstance.objects \
-                    .filter(contest=contest)[0]
+            problem_instances = ProblemInstance.objects \
+                    .filter(contest=contest)
+            problem_instance = problem_instances[0]  # TODO may remove that??
+        else:
+            problem_instances = [problem_instance]
 
-        controller = problem_instance.controller
+        #controller = problem_instance.controller
+        # Kind is hacked becasue we don't need / cannot do it smarter
         self.kind = kwargs.pop('kind',
-                controller.get_default_submission_kind(request,
-                                       problem_instance=problem_instance))
+                               problem_instance.controller.get_default_submission_kind(request,
+                                       problem_instance=problem_instance)) # TODO research kind - probably may just set to default
         problem_filter = kwargs.pop('problem_filter', None)
         self.request = request
 
@@ -144,7 +148,11 @@ class SubmissionForm(forms.Form):
         narrow_input_field(pi_field)
 
         # adding additional fields, etc
-        controller.adjust_submission_form(request, self, problem_instance)
+        # controller.adjust_submission_form(request, self, problem_instance)
+        # Apply modifications from all controllers
+        for pi in problem_instances:
+            pi.controller.adjust_submission_form(request, self, pi)
+        # TODO: this applies ProblemController, but what about ContestController? How does that work?
 
     def get_problem_instances(self):
         return submittable_problem_instances(self.request)

@@ -400,6 +400,10 @@ class ProgrammingProblemController(ProblemController):
         return submission
 
     def adjust_submission_form(self, request, form, problem_instance):
+
+        # TODO mark (and check) the form as 'prepared for programming contests'
+        # to avoid doing the same work for every task
+
         controller = problem_instance.controller
         size_limit = controller.get_submission_size_limit(problem_instance)
 
