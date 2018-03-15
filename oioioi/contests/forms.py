@@ -93,6 +93,21 @@ class ProblemInstanceForm(forms.ModelForm):
             self.fields['round'].required = True
 
 
+# This may not be needed it seems, TODO
+class ProblemInstanceSelect(forms.Select):
+    def __init__(self, attrs=None, choices=()):
+        # if attrs is not None:
+        #     attrs = attrs.copy()
+        # else:
+        #     attrs = {}
+        # attrs['onchange'] = 'selectedProblemInstanceChangeListener'
+        super(ProblemInstanceSelect, self).__init__(attrs, choices)
+
+    class Media(object):  # TODO not sure if this `object` is needed
+        # css = {'all': ('common/reg.css',)}
+        js = ('common/submit.js',) # FIXME this seems not to work, for now put it into submit.html
+
+
 class SubmissionForm(forms.Form):
     """Represents base submission form containing task selector.
 
@@ -102,7 +117,8 @@ class SubmissionForm(forms.Form):
          * ``problem_instance`` - when SubmissionForm is used only for one
              problem_instance. Otherwise ``problem_instance`` is None.
     """
-    problem_instance_id = forms.ChoiceField(label=_("Problem"))
+    problem_instance_id = forms.ChoiceField(label=_("Problem"),
+                                            widget=ProblemInstanceSelect)
 
     def __init__(self, request, *args, **kwargs):
         problem_instance = kwargs.pop('problem_instance', None)
