@@ -404,12 +404,6 @@ class ProgrammingProblemController(ProblemController):
         # TODO mark (and check) the form as 'prepared for programming contests'
         # to avoid doing the same work for every task
 
-        # FIXME this is only for testing:
-        pid = str(problem_instance.id)
-        pname = problem_instance.short_name + ": " + problem_instance.problem.name
-        form.fields['test_' + pid] = forms.CharField(label=_("Problem: %s") % pname)
-        form.set_custom_field_attributes('test_' + pid, problem_instance)
-
         controller = problem_instance.controller
         size_limit = controller.get_submission_size_limit(problem_instance)
 
