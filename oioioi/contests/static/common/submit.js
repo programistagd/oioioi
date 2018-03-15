@@ -1,8 +1,7 @@
 $(function() {
     const problemInstanceSelector = $("#id_problem_instance_id");
-    problemInstanceSelector.on('change', function(event) {
-        var problemInstanceId = event.target.value;
 
+    function setFormToProblemInstance(problemInstanceId) {
         const allFields = $("form [data-submit]");
         const customFields = $("form [data-submit='" + problemInstanceId + "']");
         if (customFields.length) {
@@ -19,5 +18,11 @@ $(function() {
 
             console.log("No custom fields for this problem instance"); // TODO remove debug
         }
+    }
+
+    problemInstanceSelector.on('change', function(event) {
+        setFormToProblemInstance(event.target.value);
     });
+
+    setFormToProblemInstance('default'); // for start set to default
 });

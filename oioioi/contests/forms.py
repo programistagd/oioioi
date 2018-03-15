@@ -173,6 +173,17 @@ class SubmissionForm(forms.Form):
 
         self._set_default_fields_attributes()
 
+    def set_custom_field_attributes(self, field_name, problem_instance):
+        """
+        Prepare custom field to be displayed only for a specific problems.
+        Still all custom fields need to have unique names
+        (best practice is to prefix them with `problem_instance.id`).
+        :param field_name: Name of custom field
+        :param problem_instance: Problem instance which they are assigned to
+        """
+        self.fields[field_name].widget.attrs['data-submit'] = \
+            str(problem_instance.id)
+
     def _set_default_fields_attributes(self):
         for field_name in self.fields:
             if field_name == 'problem_instance_id':
