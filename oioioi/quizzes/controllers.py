@@ -51,10 +51,18 @@ class QuizProblemController(ProblemController):
 
     def adjust_submission_form(self, request, form, problem_instance):
         pid = str(problem_instance.id)
-        pname = problem_instance.short_name + ": " + problem_instance.problem.name
-        form.fields['test_' + pid] = forms.CharField(
-            label=_("Problem: %s") % pname)
-        form.set_custom_field_attributes('test_' + pid, problem_instance)
+
+        # TODO should be problem_instance.???.quizquestion_set.all()
+        questions = QuizQuestion.objects.filter(quiz=problem_instance.problem)
+
+        for question in questions:
+            answers = question.quizanswer_set.values_list('id', 'answer')
+            field_name = 'quiz_' + pid + '_q_' + str(question.id)
+            form.fields[field_name] = forms.ChoiceField(
+                label=question.question,
+                choices=answers
+            )
+            form.set_custom_field_attributes(field_name, problem_instance)
 
     def create_submission(self, request, problem_instance, form_data,
                           judge_after_create=True,
