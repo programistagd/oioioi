@@ -58,9 +58,14 @@ class QuizProblemController(ProblemController):
         for question in questions:
             answers = question.quizanswer_set.values_list('id', 'answer')
             field_name = 'quiz_' + pid + '_q_' + str(question.id)
+            if question.is_multiple_choice:
+                widget = forms.CheckboxSelectMultiple
+            else:
+                widget = forms.RadioSelect
             form.fields[field_name] = forms.ChoiceField(
                 label=question.question,
-                choices=answers
+                choices=answers,
+                widget=widget
             )
             form.set_custom_field_attributes(field_name, problem_instance)
 
