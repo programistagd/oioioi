@@ -166,9 +166,26 @@ class SubmissionForm(forms.Form):
         # adding additional fields, etc
         # controller.adjust_submission_form(request, self, problem_instance)
         # Apply modifications from all controllers
+        # TODO: this applies ProblemController,
+        # TODO: but what about ContestController? How does that work?
         for pi in problem_instances:
             pi.controller.adjust_submission_form(request, self, pi)
-        # TODO: this applies ProblemController, but what about ContestController? How does that work?
+
+        self._set_default_fields_attributes()
+
+    def _set_default_fields_attributes(self):
+        for field_name in self.fields:
+            if field_name == 'problem_instance_id':
+                # We skip `problem_instance_id`,
+                # because it shouldn't have an attribute
+                # as it has other logic applied to it.
+                continue
+            field = self.fields[field_name]
+            if 'data-submit' not in field.widget.attrs:
+                # If no attribute was set, set it to default.
+                # This is for backwards compatibility with contests that
+                # have only one submission form and don't need to bother.
+                field.widget.attrs['data-submit'] = 'default'
 
     def get_problem_instances(self):
         return submittable_problem_instances(self.request)
