@@ -74,8 +74,9 @@ class QuizProblemController(ProblemController):
                 else:
                     answers = [int(data)]
 
-            for a in answers:
-                answer = QuizAnswer.objects.get(id=a)
+            # TODO not sure if this is needed - the Field itself should check it
+            for aid in answers:
+                answer = QuizAnswer.objects.get(id=aid)
                 if answer.question != question:
                     # This answer is to some other question.
                     # Something bad is going on.
