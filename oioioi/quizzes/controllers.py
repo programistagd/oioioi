@@ -1,5 +1,6 @@
 import logging
 
+from django.core.exceptions import ValidationError
 from oioioi.problems.controllers import ProblemController
 from oioioi.quizzes.models import *
 
@@ -50,21 +51,45 @@ class QuizProblemController(ProblemController):
     def update_user_results(self, user, problem_instance):
         pass  # TODO scoring?
 
+    def _field_name_for_question(self, problem_instance, question):
+        return 'quiz_' + str(problem_instance.id) + '_q_' + str(question.id)
+
     def validate_submission_form(self, request, problem_instance, form,
             cleaned_data):
-        logger.debug(cleaned_data)
-        logger.debug(form.errors.as_data())
-        # TODO
+
+        questions = problem_instance.problem.quiz.quizquestion_set.all()
+        for question in questions:
+            field_name = self._field_name_for_question(problem_instance,
+                                                       question)
+            if field_name in form.errors.as_data():
+                continue  # already has a validation error
+
+            data = cleaned_data[field_name]
+            if question.is_multiple_choice:
+                answers = [int(a) for a in data]
+            else:
+                if data == '':
+                    form.add_error(field_name, _("Answer is required here."))
+                    answers = []
+                else:
+                    answers = [int(data)]
+
+            for a in answers:
+                answer = QuizAnswer.objects.get(id=a)
+                if answer.question != question:
+                    # This answer is to some other question.
+                    # Something bad is going on.
+                    raise ValidationError(_("Illegal answer"))
+
         return cleaned_data
 
     def adjust_submission_form(self, request, form, problem_instance):
-        pid = str(problem_instance.id)
-
         questions = problem_instance.problem.quiz.quizquestion_set.all()
 
         for question in questions:
             answers = question.quizanswer_set.values_list('id', 'answer')
-            field_name = 'quiz_' + pid + '_q_' + str(question.id)
+            field_name = self._field_name_for_question(problem_instance,
+                                                       question)
             if question.is_multiple_choice:
                 form.fields[field_name] = forms.MultipleChoiceField(
                     label=question.question,
@@ -100,10 +125,10 @@ class QuizProblemController(ProblemController):
             logger.warn("SUBMITTING")
 
             # add answers to submission
-            pid = str(problem_instance.id)
             questions = problem_instance.problem.quiz.quizquestion_set.all()
             for question in questions:
-                field_name = 'quiz_' + pid + '_q_' + str(question.id)
+                field_name = self._field_name_for_question(problem_instance,
+                                                           question)
                 if question.is_multiple_choice:
                     answers = [int(a) for a in form_data.get(field_name)]
                 else:
@@ -139,7 +164,7 @@ class QuizProblemController(ProblemController):
                     'selected': False
                 }
 
-        # fill-in which questions have been answered
+        # fill-in which answers have been selected
         for qsa in submission.quizsubmission.quizsubmissionanswer_set.all():
             qid = qsa.answer.question.id
             aid = qsa.answer.id

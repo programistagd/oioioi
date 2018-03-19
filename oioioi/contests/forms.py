@@ -136,9 +136,10 @@ class SubmissionForm(forms.Form):
 
         #controller = problem_instance.controller
         # Kind is hacked becasue we don't need / cannot do it smarter
+        # TODO
         self.kind = kwargs.pop('kind',
                                problem_instance.controller.get_default_submission_kind(request,
-                                       problem_instance=problem_instance)) # TODO research kind - probably may just set to default
+                                       problem_instance=problem_instance))
         problem_filter = kwargs.pop('problem_filter', None)
         self.request = request
 
