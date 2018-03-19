@@ -36,5 +36,5 @@ $(function() {
         setFormToProblemInstance(event.target.value);
     });
 
-    setFormToProblemInstance('default'); // for start set to default
+    setFormToProblemInstance($("#id_problem_instance_id").val()); // for start set to default
 });

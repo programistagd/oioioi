@@ -5,6 +5,11 @@ from oioioi.quizzes.models import *
 
 from django.utils.translation import ugettext_lazy as _
 from django import forms
+from django.db import transaction
+from django.template import RequestContext
+from oioioi.contests.controllers import ContestController, \
+        submission_template_context
+from django.template.loader import render_to_string
 
 
 logger = logging.getLogger(__name__)
@@ -47,46 +52,111 @@ class QuizProblemController(ProblemController):
 
     def validate_submission_form(self, request, problem_instance, form,
             cleaned_data):
+        logger.debug(cleaned_data)
+        logger.debug(form.errors.as_data())
+        # TODO
         return cleaned_data
 
     def adjust_submission_form(self, request, form, problem_instance):
         pid = str(problem_instance.id)
 
-        # TODO should be problem_instance.???.quizquestion_set.all()
-        questions = QuizQuestion.objects.filter(quiz=problem_instance.problem)
+        questions = problem_instance.problem.quiz.quizquestion_set.all()
 
         for question in questions:
             answers = question.quizanswer_set.values_list('id', 'answer')
             field_name = 'quiz_' + pid + '_q_' + str(question.id)
             if question.is_multiple_choice:
-                widget = forms.CheckboxSelectMultiple
+                form.fields[field_name] = forms.MultipleChoiceField(
+                    label=question.question,
+                    choices=answers,
+                    widget=forms.CheckboxSelectMultiple,
+                    required=False
+                )
             else:
-                widget = forms.RadioSelect
-            form.fields[field_name] = forms.ChoiceField(
-                label=question.question,
-                choices=answers,
-                widget=widget
-            )
+                form.fields[field_name] = forms.ChoiceField(
+                    label=question.question,
+                    choices=answers,
+                    widget=forms.RadioSelect,
+                    required=False
+                )
             form.set_custom_field_attributes(field_name, problem_instance)
 
     def create_submission(self, request, problem_instance, form_data,
                           judge_after_create=True,
                           **kwargs):
-        submission = QuizSubmission(
-            user=form_data.get('user', request.user),
-            problem_instance=problem_instance,
-            kind=form_data.get('kind',
-                               problem_instance.controller.get_default_submission_kind(
-                                   request,
-                                   problem_instance=problem_instance)),
-            date=request.timestamp
-        )
 
-        submission.save()
+        with transaction.atomic():
+            submission = QuizSubmission(
+                user=form_data.get('user', request.user),
+                problem_instance=problem_instance,
+                kind=form_data.get('kind',
+                                   problem_instance.controller.get_default_submission_kind(
+                                       request,
+                                       problem_instance=problem_instance)),
+                date=request.timestamp
+            )
 
-        # TODO create submission answers
-        # also maybe transaction to not have partially added submission if sth goes wrong?
+            submission.save()
+            logger.warn("SUBMITTING")
+
+            # add answers to submission
+            pid = str(problem_instance.id)
+            questions = problem_instance.problem.quiz.quizquestion_set.all()
+            for question in questions:
+                field_name = 'quiz_' + pid + '_q_' + str(question.id)
+                if question.is_multiple_choice:
+                    answers = [int(a) for a in form_data.get(field_name)]
+                else:
+                    answers = [int(form_data.get(field_name))]
+
+                for a in answers:
+                    answer = QuizAnswer.objects.get(id=a)
+                    sub = QuizSubmissionAnswer.objects.create(
+                        quiz_submission=submission,
+                        answer=answer
+                    )
+                    sub.save()
 
         if judge_after_create:
             problem_instance.controller.judge(submission)
         return submission
+
+    def render_submission(self, request, submission):
+        problem_instance = submission.problem_instance
+
+        # TODO this is just for testing but may be repurposed for actual view
+        questions = problem_instance.problem.quiz.quizquestion_set.all()
+        qa = {}
+        # prepare base question-answer structure
+        for q in questions:
+            qa[q.id] = {
+                'question': q.question,
+                'answers': {}
+            }
+            for a in q.quizanswer_set.all():
+                qa[q.id]['answers'][a.id] = {
+                    'text': a.answer,
+                    'selected': False
+                }
+
+        # fill-in which questions have been answered
+        for qsa in submission.quizsubmission.quizsubmissionanswer_set.all():
+            qid = qsa.answer.question.id
+            aid = qsa.answer.id
+            qa[qid]['answers'][aid]['selected'] = True
+
+        # get rid of keys
+        for k in qa:
+            qa[k]['answers'] = qa[k]['answers'].values()
+        qa = qa.values()
+
+        return render_to_string('quizzes/submission_header.html',
+                context_instance=RequestContext(request,
+                    {'submission': submission_template_context(request,
+                        submission.quizsubmission),
+                    'saved_diff_id': request.session.get('saved_diff_id'),
+                    'questions_answers': qa,  # TODO
+                    'supported_extra_args':
+                        problem_instance.controller.get_supported_extra_args(
+                            submission),
+                    'can_admin': False}))  # TODO
